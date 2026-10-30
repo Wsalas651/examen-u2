@@ -56,6 +56,11 @@ dependencies:
   geolocator: ^14.1.2
   url_launcher: ^6.3.3
 
+# Selección GPS en emuladores para recibir Extended Controls / Set Location.
+dependency_overrides:
+  geolocator_android:
+    path: ../packages/geolocator_android
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,5 +1,17 @@
 # SITRA-Luz — mapa de cercanía (Examen U2)
 
+## Actualización: Set Location con el proveedor corregido
+
+El repositorio ahora incluye `packages/geolocator_android`, una copia local con licencia MIT que selecciona el proveedor GPS en el emulador. Los controles extendidos envían posiciones GNSS a ese proveedor. La selección en dispositivos físicos y los límites de precisión media, 30 s, 50 m y 10 s no cambian.
+
+1. Detén la ejecución anterior de Flutter con Ctrl+C.
+2. Desde la carpeta `app`, ejecuta `flutter pub get` y `flutter run`. Este cambio nativo requiere una reconstrucción; hot reload no basta.
+3. Mantén activado Ubicación en Android y Enable GPS signal en Extended controls → Location.
+4. Abre el mapa. Pulsa Usar GPS si aparece Tiempo agotado. Envía Set Location durante los siguientes 10 segundos.
+5. Para probar dentro, usa -18.0057, -70.2463. Para fuera, usa -18.0039, -70.2463. Después de la primera lectura, espera al menos 30 segundos entre cambios; el movimiento también debe ser de 50 m o más.
+
+Los comandos de proveedor de prueba fused que aparecen más adelante documentan el procedimiento anterior y una alternativa de diagnóstico; no son necesarios para Set Location con la corrección. Si se había activado ese proveedor, debe retirarse con `adb shell cmd location providers remove-test-provider fused` y restaurar el permiso de shell con `adb shell appops set 2000 android:mock_location default`.
+
 ## Ejecutar
 
 Desde la carpeta `SITRA-Luz\app`, con un emulador encendido:
@@ -64,7 +76,7 @@ No requiere claves de Google Cloud. La ubicación usa permisos de Android en pri
 - `mapa-sin-gps-manual.png`: captura real con ubicación del sistema apagada y selección mediante toque.
 - `gps-detenido.txt`: salida real de Logcat al salir del mapa.
 
-En esta imagen de emulador, el proveedor de precisión media no recibió las posiciones enviadas mediante `geo fix`; la app mostró correctamente **Tiempo agotado**. Para comprobar también la ruta de éxito se inyectaron lecturas en el proveedor de prueba de Android. Al terminar se eliminó ese proveedor de prueba y se restauró Ubicación al estado activado.
+**Antes de la corrección del plugin**, el proveedor de precisión media de esta imagen no recibió las posiciones enviadas mediante `geo fix`; la app mostró correctamente **Tiempo agotado**. Para comprobar también la ruta de éxito se inyectaron lecturas en el proveedor de prueba de Android. Al terminar se eliminó ese proveedor de prueba y se restauró Ubicación al estado activado.
 
 Si tus controles extendidos no alimentan el proveedor de precisión media, puedes reproducir la comprobación desde otra terminal (con el mapa abierto). Estos comandos son solo para un emulador de desarrollo:
 
