@@ -1,3 +1,6 @@
+import '../../features/ubicacion/data/servicio_ubicacion_gps.dart';
+import '../../features/ubicacion/presentation/mapa_ubicacion_view.dart';
+import 'mapa_route_observer.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/domain/entities/user_entity.dart';
@@ -17,6 +20,7 @@ class AppRoutes {
   AppRoutes._();
 
   static const String login = '/login';
+  static const String mapa = '/mapa';
   static const String admin = '/admin';
   static const String catalogos = '/admin/catalogos';
   static const String usuarios = '/admin/usuarios';
@@ -64,7 +68,13 @@ GoRouter createRouter(AuthViewModel authViewModel) {
   return GoRouter(
     initialLocation: AppRoutes.login,
     refreshListenable: authViewModel,
+    observers: [mapaRouteObserver],
     routes: [
+      GoRoute(
+        path: AppRoutes.mapa,
+        builder: (context, state) =>
+            MapaUbicacionView(servicio: ServicioUbicacionGps()),
+      ),
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginView(),
@@ -107,6 +117,8 @@ GoRouter createRouter(AuthViewModel authViewModel) {
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
+      // Mapa público: no expone datos de pacientes ni requiere sesión.
+      if (state.uri.path == AppRoutes.mapa) return null;
       final authState = authViewModel.state;
       final currentUser = authViewModel.currentUser;
       final isLoggingIn = state.matchedLocation == AppRoutes.login;

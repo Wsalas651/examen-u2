@@ -135,6 +135,11 @@ class SitraAppBar extends StatelessWidget implements PreferredSizeWidget {
               size: 22,
             ),
           ),
+        IconButton(
+          tooltip: 'Mapa de cercanía',
+          onPressed: () => context.push('/mapa'),
+          icon: const Icon(Icons.map_outlined, color: AppColors.secondary),
+        ),
         ...?actions,
         IconButton(
           tooltip: 'Cerrar sesión',

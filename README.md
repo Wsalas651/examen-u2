@@ -1,3 +1,126 @@
+# examen-u2 — Examen práctico individual de la Unidad II
+
+**Curso:** Soluciones Móviles II · Universidad Privada de Tacna
+
+**Tipo de examen:** práctico individual, implementación y pruebas de una funcionalidad móvil de ubicación.
+
+**Repositorio de entrega:** https://github.com/Wsalas651/examen-u2
+
+**Aplicación base:** SITRA-Luz, desarrollada con Flutter/Dart.
+
+**Alcance:** cinco apartados de 4 puntos cada uno (20 puntos).
+
+## Historia de usuario
+
+Como usuario de la app, quiero ver en el mapa dónde estoy y saber si estoy cerca de un lugar de interés, sin que la app agote la batería rápidamente ni se quede en blanco cuando el GPS falla.
+
+## Cambios implementados para el examen
+
+| Apartado | Implementación |
+|---|---|
+| 1. Separación de la ubicación | Entidad propia `Ubicacion` con latitud, longitud y precisión en metros. Contrato `ServicioUbicacion` inyectado en el ViewModel. Solo `ServicioUbicacionGps`, en datos, importa `geolocator`. |
+| 2. Consumo y ciclo de vida | Precisión media, intervalo de 30 segundos y filtro de 50 metros. Se comprueban ambas condiciones después de la primera lectura. Sin lectura en 10 segundos se muestra «Tiempo agotado». Al salir, cubrir la pantalla o pasar a segundo plano se cancela la escucha; el servicio registra «GPS detenido». |
+| 3. Precisión y alternativa manual | Mapa OpenStreetMap con atribución visible. Círculo azul cuyo radio en metros es la precisión recibida y texto «Precisión ± N m». Ante GPS apagado, permiso denegado o tiempo agotado, se informa el motivo y se permite elegir un punto tocando el mapa. |
+| 4. Pruebas del ViewModel | Servicio simulado para comprobar construcción sin solicitudes, lectura en -18.0066/-70.2463 con precisión de 35 m y GPS apagado con una sola solicitud y selección manual habilitada. |
+| 5. Zona de cercanía | Lugar «Clínica La Luz», centro de demostración -18.0066/-70.2463 y radio de 150 m. Distancia mediante Haversine, mensajes dentro/fuera y pruebas para puntos a aproximadamente 100 m y 300 m y para cancelación sin escuchas activas. |
+
+El centro corresponde al ejercicio: **no es una dirección comercial verificada**. La precisión de 35 m se usa en pruebas; la app muestra la precisión que entrega Android.
+
+## Arquitectura de la funcionalidad
+
+```text
+MapaUbicacionView
+        ↓
+UbicacionViewModel
+        ↓ servicio recibido por constructor
+ServicioUbicacion (contrato de dominio)
+        ↑ implementa
+ServicioUbicacionGps (capa de datos → geolocator)
+```
+
+Las pruebas reemplazan `ServicioUbicacionGps` por `ServicioUbicacionSimulado`. La entidad y el ViewModel no importan la biblioteca de GPS. La configuración del router construye e inyecta el servicio concreto.
+
+## Archivos del proyecto móvil afectados
+
+Todas las rutas de esta tabla son relativas a la raíz del repositorio.
+
+| Archivo | Tipo | Cambio |
+|---|---|---|
+| `app/lib/features/ubicacion/domain/ubicacion.dart` | Nuevo | Entidad, cálculo de distancia y lugar de interés con zona de 150 m. |
+| `app/lib/features/ubicacion/domain/servicio_ubicacion.dart` | Nuevo | Contrato del servicio y errores de dominio. |
+| `app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart` | Nuevo | Integración GPS, precisión media, filtros, conversión a entidad, cancelación y log. |
+| `app/lib/features/ubicacion/presentation/ubicacion_viewmodel.dart` | Nuevo | Estado, inyección del servicio, tiempo límite, selección manual y cierre del seguimiento. |
+| `app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart` | Nuevo | Mapa, círculos, marcadores, coordenadas, precisión, cercanía y alternativa manual. |
+| `app/lib/core/routes/mapa_route_observer.dart` | Nuevo | Observación del ciclo de navegación para detener o reanudar el seguimiento. |
+| `app/lib/core/routes/app_router.dart` | Modificado | Ruta pública `/mapa`, observador e inyección del servicio GPS. |
+| `app/lib/core/widgets/sitra_app_bar.dart` | Modificado | Acceso al mapa desde la barra de los módulos. |
+| `app/lib/features/auth/presentation/views/login_view.dart` | Modificado | Botón «Ver mapa de cercanía» disponible sin iniciar sesión. |
+| `app/android/app/src/main/AndroidManifest.xml` | Modificado | Permisos de ubicación aproximada y precisa en primer plano. |
+| `app/pubspec.yaml` | Modificado | Dependencias `flutter_map`, `latlong2`, `geolocator` y `url_launcher`. |
+| `app/pubspec.lock` | Modificado | Resolución de dependencias de la aplicación. |
+| `app/test/ubicacion_viewmodel_test.dart` | Nuevo | Servicio simulado y 10 pruebas del ViewModel, errores, cercanía y cancelación. |
+| `app/test/mapa_ubicacion_view_test.dart` | Nuevo | Prueba del radio en metros, atribución, estado de cercanía y liberación al volver. |
+| `app/test/servicio_ubicacion_gps_test.dart` | Nuevo | Dos pruebas del proveedor, configuración y cancelación durante un permiso pendiente. |
+| `app/GUIA_MAPA_U2.md` | Nuevo | Procedimiento de validación y evidencias de los cinco apartados. |
+| `app/README.md` | Modificado | Instrucciones del proyecto móvil y enlace a esta entrega. |
+
+También se actualizó este `README.md` para identificar el examen, sus cambios y los archivos afectados. El repositorio incluye el código fuente completo de la aplicación base y estas modificaciones; las carpetas de compilación y archivos temporales locales no forman parte de la entrega.
+
+## Clonar y ejecutar
+
+```powershell
+git clone https://github.com/Wsalas651/examen-u2.git
+cd examen-u2/app
+flutter pub get
+flutter run
+```
+
+Requisitos: Flutter estable, Dart compatible con `^3.9.2`, Android SDK y un emulador o dispositivo Android. El entorno de validación utilizó Flutter 3.47.8 y Dart 3.13.7.
+
+En el login pulsa **Ver mapa de cercanía**, o utiliza el icono de mapa de la barra superior de los módulos. El mapa es público y no expone datos de pacientes. La funcionalidad de ubicación **no requiere token de Google Cloud**; OpenStreetMap necesita Internet para cargar las teselas. El resto de los módulos conserva la configuración de Supabase del proyecto base.
+
+## Comandos de pruebas
+
+Ejecutar desde `app/`. Las pruebas no requieren GPS ni emulador.
+
+```powershell
+# Análisis estático
+flutter analyze --no-pub
+
+# Todas las pruebas del proyecto
+flutter test --reporter expanded
+
+# Las 13 pruebas nuevas del examen
+flutter test --reporter expanded test/ubicacion_viewmodel_test.dart test/mapa_ubicacion_view_test.dart test/servicio_ubicacion_gps_test.dart
+
+# Apartado 4: tres pruebas del ViewModel
+flutter test --reporter expanded test/ubicacion_viewmodel_test.dart --name 'PASS 4[abc]:'
+
+# Apartado 5: dos pruebas de zona y cancelación
+flutter test --reporter expanded test/ubicacion_viewmodel_test.dart --name 'PASS 5[ab]:'
+
+# Compilación Android de desarrollo
+flutter build apk --debug --no-pub
+```
+
+Validación local realizada durante la implementación: análisis sin observaciones, **49 pruebas aprobadas en total** (13 nuevas) y APK de desarrollo compilado. Estos resultados locales no representan el estado de GitHub Actions.
+
+## Evidencias y prueba manual
+
+1. En **Extended controls → Location**, fija una posición y captura las coordenadas de la app.
+2. Captura el círculo azul y «Precisión ± N m», conservando visible la atribución OpenStreetMap.
+3. Apaga Ubicación en el emulador, abre el mapa y elige un punto mediante toque; captura el motivo y la selección manual.
+4. Con `flutter run` activo, sal del mapa y captura «GPS detenido» en la consola.
+5. Prueba `-18.0057, -70.2463` (dentro, aproximadamente 100 m) y `-18.0039, -70.2463` (fuera, aproximadamente 300 m). Espera al menos 30 segundos entre lecturas aceptadas o inicia una nueva escucha saliendo y entrando al mapa.
+6. Captura los comandos de pruebas y el resultado `All tests passed!`, junto con las líneas de código correspondientes.
+
+Algunas imágenes de emulador no entregan las posiciones de `geo fix` al proveedor de precisión media. Durante la validación también se usó un proveedor de prueba de Android con lecturas simuladas de 35 m; no son lecturas físicas ni coordenadas fijadas en la app. Los pasos de reproducción y restauración están en [la guía de evidencias](app/GUIA_MAPA_U2.md).
+
+---
+
+## Documentación del proyecto base SITRA-Luz
+
+La siguiente documentación describe el proyecto original sobre el cual se implementó este examen individual; sus apartados de planificación conservan el contexto del proyecto base.
 <p align="center">
   <img src="app/assets/images/Logo_Sitra_Luz_Clinica.png" alt="SITRA-Luz" width="180">
 </p>
@@ -400,11 +523,11 @@ El desarrollo y las pruebas actuales se concentran principalmente en Android.
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Brunoenr02/SITRA-Luz.git
-cd SITRA-Luz
+git clone https://github.com/Wsalas651/examen-u2.git
+cd examen-u2
 ```
 
-Si deseas trabajar directamente con la rama de desarrollo actual:
+Para consultar una rama de desarrollo del proyecto base (si está disponible localmente):
 
 ```bash
 git switch Sprint-02

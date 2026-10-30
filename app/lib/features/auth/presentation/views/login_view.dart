@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/diseno_adaptable.dart';
 import 'package:provider/provider.dart';
@@ -54,6 +55,12 @@ class _LoginViewState extends State<LoginView> {
                 children: [
                   // Logo corporativo y encabezado
                   _buildHeader(),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: () => context.push('/mapa'),
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Ver mapa de cercanía'),
+                  ),
 
                   const SizedBox(height: 32),
 
