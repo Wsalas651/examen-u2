@@ -26,6 +26,105 @@ Como usuario de la app, quiero ver en el mapa dónde estoy y saber si estoy cerc
 
 El centro corresponde al ejercicio: **no es una dirección comercial verificada**. La precisión de 35 m se usa en pruebas; la app muestra la precisión que entrega Android.
 
+## Desarrollo de las tareas de la evaluación
+
+Los siguientes apartados detallan las tareas implementadas y las evidencias que solicita la evaluación. La implementación y las pruebas automatizadas se distinguen de las capturas que deben presentarse; una captura con ubicación simulada no se describe como lectura física ni como configuración desde controles extendidos.
+
+### 1. Separe la ubicación del resto de la app (4 puntos)
+
+**Objetivo:** La lógica de la pantalla obtiene la ubicación sin depender directamente de la biblioteca de GPS, de modo que pueda probarse sin GPS.
+
+| Tarea | Trabajo realizado | Código relacionado |
+|---|---|---|
+| 1. Representar la ubicación con una entidad propia que incluya latitud, longitud y precisión en metros. | Se creó `Ubicacion`, con los campos `latitud`, `longitud` y `precisionMetros`. | [Entidad Ubicacion](app/lib/features/ubicacion/domain/ubicacion.dart) |
+| 2. Usar la biblioteca de GPS en una única clase de datos e inyectar el servicio al ViewModel. | `ServicioUbicacionGps` es la única clase de la app que importa `geolocator`. Implementa el contrato `ServicioUbicacion`; el ViewModel lo recibe mediante `required this.servicio`, sin importar el plugin. El router construye la dependencia concreta. | [Servicio GPS](app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart), [contrato](app/lib/features/ubicacion/domain/servicio_ubicacion.dart), [ViewModel](app/lib/features/ubicacion/presentation/ubicacion_viewmodel.dart), [router](app/lib/core/routes/app_router.dart) |
+| 3. Mostrar latitud y longitud de una posición fijada desde los controles extendidos del emulador. | La pantalla muestra las tarjetas LATITUD y LONGITUD de la lectura recibida. La comprobación manual solicitada se realiza en Extended controls → Location; si el emulador no entrega esa lectura, se informa el tiempo agotado. La simulación alternativa de Android se documenta por separado. | [Pantalla del mapa](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart), [guía de validación](app/GUIA_MAPA_U2.md) |
+
+**Evidencia de la app a presentar:** captura de la pantalla con las coordenadas fijadas desde los controles extendidos del emulador. La elección manual por toque corresponde al apartado 3 y no sustituye esta comprobación.
+
+**Evidencia del código a presentar:** captura de la entidad, de la clase de datos que usa GPS y de los imports y el constructor del ViewModel.
+
+### 2. Pida la ubicación con precisión media y apague el GPS al salir (4 puntos)
+
+**Objetivo:** La app no agota la batería pidiendo más ubicación de la que necesita.
+
+| Tarea | Trabajo realizado | Código relacionado |
+|---|---|---|
+| 1. No utilizar la máxima precisión del GPS. | Se utiliza `LocationAccuracy.medium`; en Android se emplea el proveedor nativo con `forceLocationManager: true`. | [Servicio GPS](app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart) |
+| 2. Actualizar como máximo cada 30 segundos y solo ante un desplazamiento de 50 m o más. | Se configuraron `intervalDuration: Duration(seconds: 30)` y `distanceFilter: 50`. Además, después de la primera lectura se rechazan eventos si no transcurrieron 30 segundos o si el desplazamiento fue menor de 50 m. | [Ajustes y filtro del servicio](app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart) |
+| 3. Mostrar «Tiempo agotado» si no hay lectura en 10 segundos. | El ViewModel inicia un temporizador de 10 segundos. Cuando vence, cancela el seguimiento, guarda el motivo y habilita la elección manual; la pantalla muestra ese mensaje. | [ViewModel](app/lib/features/ubicacion/presentation/ubicacion_viewmodel.dart), [pantalla](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart) |
+| 4. Dejar de usar ubicación al salir del mapa y escribir «GPS detenido» en el log. | `didPop()` llama a `detener()` y `dispose()` libera el ViewModel. La cancelación del stream cancela las escuchas de posición y estado y ejecuta `debugPrint('GPS detenido')`. También se pausa el seguimiento al cubrir la pantalla o pasar a segundo plano. | [Ciclo de la pantalla](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart), [detención en el ViewModel](app/lib/features/ubicacion/presentation/ubicacion_viewmodel.dart), [cancelación del servicio](app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart) |
+
+La cancelación detiene las escuchas de esta aplicación; no apaga el interruptor global de Ubicación de Android ni los servicios de otras apps.
+
+**Evidencia de ejecución a presentar:** consola de `flutter run` o Logcat con «GPS detenido» inmediatamente después de volver desde el mapa a la pantalla anterior.
+
+**Evidencia del código a presentar:** ajustes de precisión e intervalos, filtro de tiempo y distancia, temporizador, evento de salida y cancelación de las suscripciones, con las líneas resaltadas.
+
+### 3. Muestre el radio de precisión y una alternativa sin GPS (4 puntos)
+
+**Objetivo:** El usuario ve cuán exacta es su ubicación y puede seguir usando la app aunque el GPS falle.
+
+| Tarea | Trabajo realizado | Código relacionado |
+|---|---|---|
+| 1. Mostrar OpenStreetMap con atribución visible. | Se usa `FlutterMap` con teselas de OpenStreetMap y la atribución visible «© OpenStreetMap contributors», enlazada a su página de copyright. | [Mapa, teselas y atribución](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart) |
+| 2. Dibujar la posición con un círculo cuyo radio sea la precisión en metros y mostrar «Precisión ± N m». | El círculo azul del usuario usa `radius: u.precisionMetros` y `useRadiusInMeter: true`. Debajo del mapa se muestra la precisión recibida. El círculo verde representa la zona del lugar, no la precisión del usuario. | [Círculo y texto de precisión](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart) |
+| 3. Mostrar el motivo de la falta de ubicación y permitir elegir tocando el mapa. | Los errores se comunican al ViewModel, que pasa a `EstadoUbicacion.eleccionMapa`. La pantalla muestra el motivo y `onTap` llama a `vm.elegir(...)`. La selección manual se identifica expresamente y no se presenta como lectura GPS ni como precisión medida. | [Errores del servicio](app/lib/features/ubicacion/data/servicio_ubicacion_gps.dart), [estado y selección](app/lib/features/ubicacion/presentation/ubicacion_viewmodel.dart), [interacción del mapa](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart) |
+
+**Evidencia de la app a presentar:** una captura con el círculo azul, «Precisión ± N m» y la atribución; otra con Ubicación apagada en el emulador, el motivo del fallo y un punto elegido manualmente.
+
+**Evidencia del código a presentar:** `CircleMarker` del usuario, radio en metros, texto de precisión, presentación del motivo y `onTap`/`elegir` para la selección manual.
+
+### 4. Ejecute tres pruebas unitarias del ViewModel de ubicación (4 puntos)
+
+**Objetivo:** Comprobar el ViewModel sin emulador ni GPS, reemplazando el servicio de ubicación por uno simulado.
+
+Las pruebas y el reemplazo `ServicioUbicacionSimulado` se encuentran en [ubicacion_viewmodel_test.dart](app/test/ubicacion_viewmodel_test.dart). Cada prueba recibe un ViewModel nuevo con ese servicio inyectado.
+
+| Tarea | Trabajo realizado y resultado esperado |
+|---|---|
+| 1. Prueba (a): construir el ViewModel sin pedir ubicación. | `PASS 4a` verifica `solicitudes == 0`, cero escuchas activas y estado inicial después de construirlo. |
+| 2. Prueba (b): lectura en -18.0066, -70.2463 y precisión de 35 m. | `PASS 4b` introduce esa lectura en el stream simulado y comprueba los tres valores expuestos y el estado `localizada`. |
+| 3. Prueba (c): GPS apagado, elección en el mapa y una sola solicitud. | `PASS 4c` introduce `FalloUbicacion('GPS apagado')` y verifica `eleccionMapa`, el motivo, selección habilitada, `solicitudes == 1` y cero escuchas activas. |
+| 4. Ejecutar las pruebas desde la terminal. | Las tres pruebas se ejecutaron como parte de la suite local de 49 pruebas aprobadas. El siguiente comando permite repetir únicamente estas tres. |
+
+Desde la carpeta `app/`:
+
+```powershell
+flutter test --reporter expanded test/ubicacion_viewmodel_test.dart --name 'PASS 4[abc]:'
+```
+
+El resultado esperado es **3 pruebas aprobadas** y `All tests passed!`. La palabra PASS del nombre no basta como resultado: debe comprobarse que la ejecución finaliza sin fallos.
+
+**Evidencia de la terminal a presentar:** captura del comando, los nombres de las tres pruebas y el resultado satisfactorio.
+
+**Evidencia del código a presentar:** clase simulada, inyección en `setUp` y las pruebas `PASS 4a`, `PASS 4b` y `PASS 4c`. No es necesario abrir el emulador ni ejecutar `flutter run` para estas pruebas.
+
+### 5. Avise si el usuario está cerca de un lugar y pruébelo (4 puntos)
+
+**Objetivo:** La app avisa al usuario cuando está dentro de la zona de un lugar de interés.
+
+| Tarea | Trabajo realizado | Código relacionado |
+|---|---|---|
+| 1. Marcar un lugar del negocio con zona de 150 m y avisar dentro/fuera. | Se marca «Clínica La Luz» con una zona verde de 150 m. Debajo se muestra «Estás dentro de la zona de Clínica La Luz» o «Estás fuera de la zona de Clínica La Luz», según la distancia al centro de demostración -18.0066, -70.2463. | [Lugar y cálculo](app/lib/features/ubicacion/domain/ubicacion.dart), [representación del mapa y aviso](app/lib/features/ubicacion/presentation/mapa_ubicacion_view.dart) |
+| 2. Prueba (a): punto de aproximadamente 100 m dentro y punto de 300 m fuera. | `PASS 5a` comprueba las distancias y que -18.0057, -70.2463 esté dentro y -18.0039, -70.2463 esté fuera. | [Prueba de cercanía](app/test/ubicacion_viewmodel_test.dart) |
+| 3. Prueba (b): ninguna escucha activa después de salir. | `PASS 5b` inicia el seguimiento, llama a `detener()`, comprueba cero escuchas e introduce una lectura posterior que ya no cambia la ubicación. Una prueba de pantalla adicional comprueba la liberación al volver de la ruta real. | [Prueba del ViewModel](app/test/ubicacion_viewmodel_test.dart), [prueba de pantalla](app/test/mapa_ubicacion_view_test.dart) |
+| 4. Ejecutar las pruebas desde la terminal. | Ambas pruebas se ejecutaron como parte de la suite local aprobada. El siguiente comando permite repetirlas por separado. | [Archivo de pruebas](app/test/ubicacion_viewmodel_test.dart) |
+
+Desde la carpeta `app/`:
+
+```powershell
+flutter test --reporter expanded test/ubicacion_viewmodel_test.dart --name 'PASS 5[ab]:'
+```
+
+El resultado esperado es **2 pruebas aprobadas** y `All tests passed!`.
+
+**Evidencia de la app a presentar:** dos capturas que incluyan el lugar y su zona de 150 m: una con el usuario dentro y otra fuera. La referencia es el punto de demostración de Clínica La Luz, no la universidad ni el centro visible del mapa.
+
+**Evidencia de la terminal a presentar:** comando, nombres de las pruebas `PASS 5a` y `PASS 5b` y resultado satisfactorio.
+
+**Evidencia del código a presentar:** cálculo Haversine en `distanciaA`, comparación del radio en `contiene`, centro y radio del lugar, y las dos pruebas. Si se emplea el proveedor de prueba de Android para las capturas, se debe indicar que la ubicación fue simulada. El procedimiento está en [GUIA_MAPA_U2.md](app/GUIA_MAPA_U2.md).
+
 ## Arquitectura de la funcionalidad
 
 ```text
